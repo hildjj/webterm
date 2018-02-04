@@ -1,0 +1,33 @@
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+#stdio {
+  white-space: pre;
+  overflow-y: scroll;
+  height: 48em;
+  width: 80em;
+  background: #eeeeee;
+  scroll-snap-points-y: repeat(1.2em);
+  scroll-snap-type: mandatory;
+}
+
+#stdio:before {
+  counter-reset: listing;
+}
+
+#stdio code {
+  counter-increment: listing;
+  line-height: 1.2em;
+}
+
+#stdio code::before {
+  content: counter(listing);
+  display: inline-block;
+  width: 3em;
+  padding-left: auto;
+  margin-right: 7px;
+  margin-left: auto;
+  text-align: right;
+  color: red;
+}
