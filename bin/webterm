@@ -12,10 +12,25 @@ const opn = require('opn')
 const app = websockify(new Koa())
 const socks = []
 let buf = []
+let exiting = null
 const [cmd, ...argv] = process.argv.slice(2)
 
-function enq (chunk) {
-  chunk = JSON.stringify(chunk)
+function drain (ws) {
+  for (const b of buf) {
+    ws.send(b)
+  }
+  buf = []
+  if (exiting) {
+    process.exit(exiting.code)
+  }
+}
+
+function enq (cmd, data) {
+  const c = {cmd}
+  if (data != null) {
+    c.data = data
+  }
+  const chunk = JSON.stringify(c)
   if (socks.length === 0) {
     buf.push(chunk)
   } else {
@@ -25,29 +40,41 @@ function enq (chunk) {
   }
 }
 
+function exitLater (code, signal) {
+  exiting = {code, signal}
+  if (buf.length === 0) {
+    process.exit(code)
+  }
+}
+
 if (!cmd) {
   process.stdin.setEncoding('utf8')
-  process.stdin.on('data', d => enq({stdout: d}))
+  process.stdin.on('data', d => enq('stdout', d))
+  process.stdin.on('finish', () => {
+    enq('finish')
+    exitLater(0)
+  })
 } else {
-  enq({cmd})
+  enq('spawn', cmd)
   const child = spawn(cmd, argv)
   child.stdout.setEncoding('utf8')
   child.stderr.setEncoding('utf8')
-  child.stdout.on('data', d => enq({stdout: d}))
-  child.stderr.on('data', d => enq({stderr: d}))
+  child.stdout.on('data', d => enq('stdout', d))
+  child.stderr.on('data', d => enq('stderr', d))
+  child.on('exit', (code, signal) => {
+    enq('exit', {code, signal})
+    exitLater(code, signal)
+  })
 }
 
 app.ws.use(route.all('/sock/', (ctx) => {
   const ws = ctx.websocket
   socks.push(ws)
-  for (const b of buf) {
-    ws.send(b)
-  }
-  buf = []
+  drain(ws)
   ws.on('message', (message) => {
     process.stdout.write(message)
   })
-  ctx.websocket.on('close', (code, reason) => {
+  ws.on('close', (code, reason) => {
     const i = socks.indexOf(ws)
     socks.splice(i, 1)
   })

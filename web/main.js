@@ -8,6 +8,7 @@ let code = document.createElement('code')
 std.appendChild(code)
 let scrolling = true
 let inserting = false
+let exited = false
 
 std.addEventListener('scroll', (e) => {
   if (!inserting) {
@@ -15,25 +16,28 @@ std.addEventListener('scroll', (e) => {
   }
 })
 
-ws.onmessage = m => {
-  let data = JSON.parse(m.data)
-  if (data.cmd) {
-    document.title = `WebTerm: ${data.cmd}`
-    return
+document.addEventListener('keydown', (event) => {
+  if (event.ctrlKey && (event.key === 'c')) {
+    ws.send("{cmd: 'controlC'}")
   }
-  data = data.stdout || data.stderr
-  if (!data) {
-    return
+})
+
+ws.onclose = () => {
+  if (!exited) {
+    std.insertAdjacentHTML('afterend', '<div class="disconnect">Server disconnected</div>')
   }
+}
+
+function insertText (txt) {
   let i = 0
   inserting = true
-  while (i < data.length) {
-    const j = data.indexOf('\n', i)
+  while (i < txt.length) {
+    const j = txt.indexOf('\n', i)
     if (j === -1) {
-      code.insertAdjacentText('beforeend', data.slice(i))
+      code.insertAdjacentText('beforeend', txt.slice(i))
       break
     } else {
-      code.insertAdjacentText('beforeend', data.slice(i, j))
+      code.insertAdjacentText('beforeend', txt.slice(i, j))
       std.insertAdjacentText('beforeend', '\n')
       code = document.createElement('code')
       std.appendChild(code)
@@ -47,4 +51,23 @@ ws.onmessage = m => {
     })
   }
   inserting = false
+}
+
+ws.onmessage = m => {
+  let msg = JSON.parse(m.data)
+  switch (msg.cmd) {
+    case 'spawn':
+      document.title = `WebTerm: ${msg.data}`
+      break
+    case 'stdout':
+    case 'stderr':
+      insertText(msg.data)
+      break
+    case 'exit':
+      exited = true
+      std.insertAdjacentHTML('afterend', `<div class="disconnect">Process exited: ${msg.data.code}</div>`)
+      break
+    default:
+      console.log('Unknown command: ' + m.data)
+  }
 }

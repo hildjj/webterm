@@ -29,5 +29,9 @@ body {
   margin-right: 7px;
   margin-left: auto;
   text-align: right;
+  color: blue;
+}
+
+.disconnect {
   color: red;
 }

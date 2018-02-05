@@ -1,11 +1,11 @@
 {
-  "name": "wstdio",
+  "name": "webterm",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "bin": "./bin/webterm",
   "keywords": [],
   "author": "Joe Hildebrand <joe-github@cursive.net>",
   "license": "MPL-2.0",
